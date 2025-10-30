@@ -1,44 +1,55 @@
 pipeline {
-    agent any
+  agent any
 
-    environment {
-        DOCKERHUB_CREDENTIALS = credentials('dockerhub')
-        DOCKERHUB_REPO = 'ashwitharamavath/flask-docker-app'
+  environment {
+    DOCKER_HUB_REPO = 'vyshnavi525/flask-app'
+    IMAGE_TAG = "v${BUILD_NUMBER}"
+  }
+
+  stages {
+    stage('Checkout') {
+      steps {
+        checkout scm
+      }
     }
 
-    stages {
-        stage('Build Docker Image') {
-            steps {
-                script {
-                    dockerImage = docker.build("${DOCKERHUB_REPO}:${BUILD_NUMBER}", ".")
-                }
-            }
-        }
-
-        stage('Login to Docker Hub') {
-            steps {
-                script {
-                    sh "echo ${DOCKERHUB_CREDENTIALS_PSW} | docker login -u ${DOCKERHUB_CREDENTIALS_USR} --password-stdin"
-                }
-            }
-        }
-
-        stage('Push to Docker Hub') {
-            steps {
-                script {
-                    dockerImage.push()
-                    dockerImage.push("latest")
-                }
-            }
-        }
+    stage('Build Image') {
+      steps {
+        sh 'docker build -t $DOCKER_HUB_REPO:$IMAGE_TAG .'
+      }
     }
 
-    post {
-        success {
-            echo "✅ Image pushed successfully to Docker Hub!"
+    stage('Login to Docker Hub') {
+      steps {
+        withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'USER', passwordVariable: 'PASS')]) {
+          sh 'echo $PASS | docker login -u $USER --password-stdin'
         }
-        failure {
-            echo "❌ Build failed!"
-        }
+      }
     }
+
+    stage('Push Image') {
+      steps {
+        sh 'docker push $DOCKER_HUB_REPO:$IMAGE_TAG'
+      }
+    }
+
+    stage('Tag & Push latest') {
+      when { expression { return env.BRANCH_NAME == 'main' || env.GIT_BRANCH == 'main' } }
+      steps {
+        sh '''
+          docker tag $DOCKER_HUB_REPO:$IMAGE_TAG $DOCKER_HUB_REPO:latest
+          docker push $DOCKER_HUB_REPO:latest
+        '''
+      }
+    }
+  }
+
+  post {
+    success {
+      echo "✅ Pushed successfully to Docker Hub: $DOCKER_HUB_REPO:$IMAGE_TAG"
+    }
+    always {
+      sh 'docker logout || true'
+    }
+  }
 }
