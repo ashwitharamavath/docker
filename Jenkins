@@ -2,7 +2,7 @@ pipeline {
   agent any
 
   environment {
-    DOCKER_HUB_REPO = 'vyshnavi525/flask-app'
+    DOCKER_HUB_REPO = 'ramavathshwitha/flask-app'
     IMAGE_TAG = "v${BUILD_NUMBER}"
   }
 
