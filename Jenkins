@@ -10,7 +10,7 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                bat 'docker build -t ramavathashwitha/Flask .'
+                bat 'docker build -t ramavathashwitha/flask .'
             }
         }
 
@@ -28,7 +28,7 @@ pipeline {
 
         stage('Push Image to Docker Hub') {
             steps {
-                bat 'docker push ramavathashwitha/Flask'
+                bat 'docker push ramavathashwitha/flask'
             }
         }
 
