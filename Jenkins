@@ -10,7 +10,7 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                sh 'docker build -t ramavathashwitha/Flask .'
+                bat 'docker build -t ramavathashwitha/Flask .'
             }
         }
 
@@ -19,8 +19,8 @@ pipeline {
                 withCredentials([usernamePassword(credentialsId: 'ramavathashwitha',
                                                   usernameVariable: 'DOCKERHUB_USER',
                                                   passwordVariable: 'DOCKERHUB_PASS')]) {
-                    sh '''
-                        echo $DOCKERHUB_PASS | docker login -u $DOCKERHUB_USER --password-stdin
+                    bat '''
+                    echo %DOCKERHUB_PASS% | docker login -u %DOCKERHUB_USER% --password-stdin
                     '''
                 }
             }
@@ -28,13 +28,13 @@ pipeline {
 
         stage('Push Image to Docker Hub') {
             steps {
-                sh 'docker push ramavathashwitha/Flask'
+                bat 'docker push ramavathashwitha/Flask'
             }
         }
 
         stage('Cleanup') {
             steps {
-                sh 'docker logout'
+                bat 'docker logout'
             }
         }
     }
