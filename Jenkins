@@ -1,66 +1,60 @@
 pipeline {
-    agent any
+  agent any
 
-    environment {
-        DOCKER_HUB_REPO = 'ramavathashwitha/flask-docker-app'   // your Docker Hub repo
-        IMAGE_TAG = "v${BUILD_NUMBER}"
+  environment {
+    DOCKER_HUB_REPO = 'ashwitharamavath/docker-flask'
+    IMAGE_TAG = "v${BUILD_NUMBER}"
+  }
+
+  stages {
+    stage('Checkout') {
+      steps {
+        echo "Checking out source code..."
+        checkout scm
+      }
     }
 
-    stages {
-        stage('Checkout') {
-            steps {
-                echo "Checking out source code..."
-                checkout scm
-            }
-        }
-
-        stage('Build Docker Image') {
-            steps {
-                echo "Building Docker image..."
-                sh 'docker build -t $DOCKER_HUB_REPO:$IMAGE_TAG .'
-            }
-        }
-
-        stage('Login to Docker Hub') {
-            steps {
-                echo "Logging into Docker Hub..."
-                withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'USER', passwordVariable: 'PASS')]) {
-                    sh 'echo $PASS | docker login -u $USER --password-stdin'
-                }
-            }
-        }
-
-        stage('Push Docker Image') {
-            steps {
-                echo "Pushing Docker image to Docker Hub..."
-                sh 'docker push $DOCKER_HUB_REPO:$IMAGE_TAG'
-            }
-        }
-
-        stage('Tag & Push latest') {
-            when {
-                expression { return env.BRANCH_NAME == 'main' || env.GIT_BRANCH == 'main' }
-            }
-            steps {
-                echo "Tagging image as latest and pushing..."
-                sh '''
-                    docker tag $DOCKER_HUB_REPO:$IMAGE_TAG $DOCKER_HUB_REPO:latest
-                    docker push $DOCKER_HUB_REPO:latest
-                '''
-            }
-        }
+    stage('Build Docker Image') {
+      steps {
+        echo "Building Docker image..."
+        bat 'docker build -t %DOCKER_HUB_REPO%:%IMAGE_TAG% .'
+      }
     }
 
-    post {
-        success {
-            echo "✅ Successfully pushed Docker image: $DOCKER_HUB_REPO:$IMAGE_TAG"
+    stage('Login to Docker Hub') {
+      steps {
+        withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'USER', passwordVariable: 'PASS')]) {
+          bat 'echo %PASS% | docker login -u %USER% --password-stdin'
         }
-        failure {
-            echo "❌ Build failed! Check console logs for details."
-        }
-        always {
-            echo "Logging out from Docker Hub..."
-            sh 'docker logout || true'
-        }
+      }
     }
+
+    stage('Push Docker Image') {
+      steps {
+        bat 'docker push %DOCKER_HUB_REPO%:%IMAGE_TAG%'
+      }
+    }
+
+    stage('Tag & Push latest') {
+      when { expression { return env.BRANCH_NAME == 'main' || env.GIT_BRANCH == 'main' } }
+      steps {
+        bat '''
+          docker tag %DOCKER_HUB_REPO%:%IMAGE_TAG% %DOCKER_HUB_REPO%:latest
+          docker push %DOCKER_HUB_REPO%:latest
+        '''
+      }
+    }
+  }
+
+  post {
+    success {
+      echo "✅ Pushed successfully to Docker Hub: ${env.DOCKER_HUB_REPO}:${env.IMAGE_TAG}"
+    }
+    always {
+      bat 'docker logout || exit 0'
+    }
+    failure {
+      echo "❌ Build failed! Check console logs for details."
+    }
+  }
 }
