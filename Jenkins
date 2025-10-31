@@ -1,63 +1,41 @@
 pipeline {
-  agent any
+    agent any
 
-  environment {
-    DOCKER_HUB_REPO = 'ashwitharamavath/docker-flask'
-    IMAGE_TAG = "v${BUILD_NUMBER}"
-  }
+    stages {
+        stage('Checkout') {
+            steps {
+                git branch: 'main', url: 'https://github.com/ashwitharamavath/docker'
+            }
+        }
 
-  stages {
-    stage('Checkout') {
-      steps {
-        echo "Checking out source code..."
-        checkout scm
-      }
-    }
+        stage('Build Docker Image') {
+            steps {
+                sh 'docker build -t ramavathashwitha/Flask .'
+            }
+        }
 
-    stage('Build Docker Image') {
-      steps {
-        echo "Building Docker image..."
-        bat 'docker build -t %DOCKER_HUB_REPO%:%IMAGE_TAG% .'
-      }
-    }
+        stage('Login to Docker Hub') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'ramavathashwitha',
+                                                  usernameVariable: 'DOCKERHUB_USER',
+                                                  passwordVariable: 'DOCKERHUB_PASS')]) {
+                    sh '''
+                        echo $DOCKERHUB_PASS | docker login -u $DOCKERHUB_USER --password-stdin
+                    '''
+                }
+            }
+        }
 
-    stage('Login to Docker Hub') {
-    steps {
-        withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'USER', passwordVariable: 'PASS')]) {
-            bat """
-            echo %PASS% | docker login -u %USER% --password-stdin
-            """
+        stage('Push Image to Docker Hub') {
+            steps {
+                sh 'docker push ramavathashwitha/Flask'
+            }
+        }
+
+        stage('Cleanup') {
+            steps {
+                sh 'docker logout'
+            }
         }
     }
-}
-
-
-    stage('Push Docker Image') {
-      steps {
-        bat 'docker push %DOCKER_HUB_REPO%:%IMAGE_TAG%'
-      }
-    }
-
-    stage('Tag & Push latest') {
-      when { expression { return env.BRANCH_NAME == 'main' || env.GIT_BRANCH == 'main' } }
-      steps {
-        bat '''
-          docker tag %DOCKER_HUB_REPO%:%IMAGE_TAG% %DOCKER_HUB_REPO%:latest
-          docker push %DOCKER_HUB_REPO%:latest
-        '''
-      }
-    }
-  }
-
-  post {
-    success {
-      echo "✅ Pushed successfully to Docker Hub: ${env.DOCKER_HUB_REPO}:${env.IMAGE_TAG}"
-    }
-    always {
-      bat 'docker logout || exit 0'
-    }
-    failure {
-      echo "❌ Build failed! Check console logs for details."
-    }
-  }
 }
